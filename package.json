@@ -7,10 +7,15 @@
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"register-commands": "tsx scripts/register-discord-commands.ts",
+		"ingest-sample": "tsx scripts/ingest-sample.ts",
+		"db:migrate": "wrangler d1 migrations apply feedback-data --remote",
+		"db:migrate:local": "wrangler d1 migrations apply feedback-data --local"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
+		"tsx": "^4.7.0",
 		"typescript": "^5.5.2",
 		"vitest": "~3.2.0",
 		"wrangler": "^4.58.0"
