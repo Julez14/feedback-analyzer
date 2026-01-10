@@ -10,12 +10,11 @@
 	"observability": {
 		"enabled": true
 	},
-
 	// Workers AI binding (also used for AI Search / AutoRAG)
+	// NOTE: Only ONE AI binding per Worker, but you can use it for multiple models
 	"ai": {
 		"binding": "AI"
 	},
-
 	// D1 database binding
 	"d1_databases": [
 		{
@@ -25,7 +24,6 @@
 			"migrations_dir": "migrations"
 		}
 	],
-
 	// R2 bucket binding
 	"r2_buckets": [
 		{
@@ -33,9 +31,11 @@
 			"bucket_name": "feedback"
 		}
 	],
-
 	// Environment variables
 	"vars": {
+		// Discord App Public Key (hex). Required for verifying Interaction requests.
+		// Replace this with your real Discord application's public key from the Developer Portal.
+		"DISCORD_PUBLIC_KEY": "f2d69cf2d521adcfe08f6cad00922cd71dfd441fca5eb27646cc46b3649bd92e",
 		"AI_SEARCH_NAME": "feedback-search",
 		"MODEL_NORMALIZE": "@cf/meta/llama-3.1-8b-instruct",
 		"MODEL_SUMMARIZE": "@cf/meta/llama-3.1-8b-instruct"

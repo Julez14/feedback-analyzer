@@ -134,7 +134,7 @@ describe('Feedback Analyzer Worker', () => {
 			const body = await response.json();
 			expect(body).toHaveProperty('date');
 			expect(body).toHaveProperty('total_feedback');
-		});
+		}, 30000); // 30s timeout for AI Search calls
 
 		it('accepts request with specific date', async () => {
 			const request = new IncomingRequest('http://example.com/digest', {
@@ -149,7 +149,7 @@ describe('Feedback Analyzer Worker', () => {
 			expect(response.status).toBe(200);
 			const body = await response.json();
 			expect(body.date).toBe('2026-01-09');
-		});
+		}, 30000); // 30s timeout for AI Search calls
 	});
 
 	describe('404 handling', () => {

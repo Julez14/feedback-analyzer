@@ -118,9 +118,44 @@ export function createEphemeralResponse(content: string): InteractionResponse {
 }
 
 /**
+ * Create a deferred response (shows "Bot is thinking...").
+ * Use this when your response will take > 3 seconds.
+ */
+export function createDeferredResponse(): InteractionResponse {
+	return {
+		type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+	};
+}
+
+/**
  * Extract a string option value from interaction data.
  */
 export function getStringOption(interaction: DiscordInteraction, name: string): string | undefined {
 	const option = interaction.data?.options?.find((o) => o.name === name);
 	return option?.value !== undefined ? String(option.value) : undefined;
+}
+
+/**
+ * Edit the original deferred response via Discord's webhook API.
+ * Call this after returning createDeferredResponse() to update the message.
+ */
+export async function editOriginalResponse(
+	applicationId: string,
+	interactionToken: string,
+	content: string
+): Promise<void> {
+	const url = `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`;
+
+	const response = await fetch(url, {
+		method: 'PATCH',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({ content }),
+	});
+
+	if (!response.ok) {
+		const error = await response.text();
+		console.error(`Failed to edit Discord message: ${response.status} - ${error}`);
+	}
 }

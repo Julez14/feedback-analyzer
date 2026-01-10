@@ -18,6 +18,8 @@ import {
 	createPongResponse,
 	createMessageResponse,
 	createEphemeralResponse,
+	createDeferredResponse,
+	editOriginalResponse,
 	getStringOption,
 } from './discord/types';
 
@@ -30,7 +32,7 @@ export default {
 		// Simple router
 		try {
 			if (method === 'POST' && pathname === '/interactions') {
-				return handleDiscordInteraction(request, env);
+				return handleDiscordInteraction(request, env, ctx);
 			}
 
 			if (method === 'POST' && pathname === '/ingest') {
@@ -64,12 +66,17 @@ export default {
 
 /**
  * Handle Discord interactions (slash commands).
+ * Uses deferred responses for slow commands to avoid Discord's 3-second timeout.
  */
-async function handleDiscordInteraction(request: Request, env: Env): Promise<Response> {
-	// TODO: Add Discord signature verification for production
-	// For MVP, we skip verification as per plan
+async function handleDiscordInteraction(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+	let interaction: DiscordInteraction;
+	try {
+		interaction = (await request.json()) as DiscordInteraction;
+	} catch {
+		return new Response('Bad Request', { status: 400 });
+	}
 
-	const interaction: DiscordInteraction = await request.json();
+	const commandName = interaction.data?.name?.toLowerCase();
 
 	// Handle PING (Discord verification)
 	if (interaction.type === InteractionType.PING) {
@@ -78,13 +85,11 @@ async function handleDiscordInteraction(request: Request, env: Env): Promise<Res
 
 	// Handle APPLICATION_COMMAND
 	if (interaction.type === InteractionType.APPLICATION_COMMAND) {
-		const commandName = interaction.data?.name?.toLowerCase();
-
 		switch (commandName) {
 			case 'ask':
-				return handleAskCommand(interaction, env);
+				return handleAskCommand(interaction, env, ctx);
 			case 'digest':
-				return handleDigestCommand(interaction, env);
+				return handleDigestCommand(interaction, env, ctx);
 			default:
 				return Response.json(createEphemeralResponse(`Unknown command: ${commandName}`));
 		}
@@ -95,91 +100,116 @@ async function handleDiscordInteraction(request: Request, env: Env): Promise<Res
 
 /**
  * Handle /ask slash command.
+ * Uses deferred response pattern to avoid Discord's 3-second timeout.
  */
-async function handleAskCommand(interaction: DiscordInteraction, env: Env): Promise<Response> {
+function handleAskCommand(interaction: DiscordInteraction, env: Env, ctx: ExecutionContext): Response {
 	const query = getStringOption(interaction, 'query');
 
 	if (!query) {
 		return Response.json(createEphemeralResponse('Please provide a query using the `query` option.'));
 	}
 
-	try {
-		const searchResult = await queryAiSearch(env.AI, env.AI_SEARCH_NAME, query);
-		const formattedResponse = await summarizeForDiscord(env.AI, env.MODEL_SUMMARIZE, searchResult, { query });
+	// Immediately return a deferred response (shows "Flare is thinking...")
+	// Then do the slow work in the background and edit the message
+	ctx.waitUntil(
+		(async () => {
+			try {
+				const searchResult = await queryAiSearch(env.AI, env.AI_SEARCH_NAME, query);
+				const formattedResponse = await summarizeForDiscord(env.AI, env.MODEL_SUMMARIZE, searchResult, { query });
+				await editOriginalResponse(interaction.application_id, interaction.token, formattedResponse);
+			} catch (error) {
+				console.error('Ask command error:', error);
+				await editOriginalResponse(
+					interaction.application_id,
+					interaction.token,
+					'Sorry, I encountered an error while searching. Please try again.'
+				);
+			}
+		})()
+	);
 
-		return Response.json(createMessageResponse(formattedResponse));
-	} catch (error) {
-		console.error('Ask command error:', error);
-		return Response.json(createEphemeralResponse('Sorry, I encountered an error while searching. Please try again.'));
-	}
+	return Response.json(createDeferredResponse());
 }
 
 /**
  * Handle /digest slash command.
+ * Uses deferred response pattern to avoid Discord's 3-second timeout.
  */
-async function handleDigestCommand(interaction: DiscordInteraction, env: Env): Promise<Response> {
+function handleDigestCommand(interaction: DiscordInteraction, env: Env, ctx: ExecutionContext): Response {
 	const dateOption = getStringOption(interaction, 'date');
 	const date = dateOption || new Date().toISOString().split('T')[0]; // Default to today (UTC)
 
-	try {
-		// Get semantic digest from AI Search
-		const searchResult = await generateDigest(env.AI, env.AI_SEARCH_NAME, date);
+	// Immediately return a deferred response (shows "Flare is thinking...")
+	// Then do the slow work in the background and edit the message
+	ctx.waitUntil(
+		(async () => {
+			try {
+				// Get semantic digest from AI Search
+				const searchResult = await generateDigest(env.AI, env.AI_SEARCH_NAME, date);
 
-		// Get deterministic stats from D1
-		const stats = await getDailyStats(env.DB, date);
-		const totalCount = await getFeedbackCount(env.DB, date);
-		const highUrgency = await getHighUrgencySample(env.DB, 3);
+				// Get deterministic stats from D1
+				const stats = await getDailyStats(env.DB, date);
+				const totalCount = await getFeedbackCount(env.DB, date);
+				const highUrgency = await getHighUrgencySample(env.DB, 3);
 
-		// Format the digest response
-		let digestContent = `**📊 Feedback Digest for ${date}**\n\n`;
+				// Format the digest response
+				let digestContent = `**📊 Feedback Digest for ${date}**\n\n`;
 
-		if (totalCount > 0) {
-			digestContent += `**Total feedback:** ${totalCount}\n\n`;
+				if (totalCount > 0) {
+					digestContent += `**Total feedback:** ${totalCount}\n\n`;
 
-			// Add stats breakdown if available
-			if (stats.length > 0) {
-				digestContent += '**Breakdown by source & sentiment:**\n';
-				const grouped: Record<string, { pos: number; neu: number; neg: number }> = {};
-				for (const stat of stats) {
-					if (!grouped[stat.source]) {
-						grouped[stat.source] = { pos: 0, neu: 0, neg: 0 };
+					// Add stats breakdown if available
+					if (stats.length > 0) {
+						digestContent += '**Breakdown by source & sentiment:**\n';
+						const grouped: Record<string, { pos: number; neu: number; neg: number }> = {};
+						for (const stat of stats) {
+							if (!grouped[stat.source]) {
+								grouped[stat.source] = { pos: 0, neu: 0, neg: 0 };
+							}
+							if (stat.sentiment === 'positive') grouped[stat.source].pos += stat.count;
+							else if (stat.sentiment === 'negative') grouped[stat.source].neg += stat.count;
+							else grouped[stat.source].neu += stat.count;
+						}
+						for (const [source, counts] of Object.entries(grouped)) {
+							digestContent += `• ${source}: 👍${counts.pos} 😐${counts.neu} 👎${counts.neg}\n`;
+						}
+						digestContent += '\n';
 					}
-					if (stat.sentiment === 'positive') grouped[stat.source].pos += stat.count;
-					else if (stat.sentiment === 'negative') grouped[stat.source].neg += stat.count;
-					else grouped[stat.source].neu += stat.count;
+
+					// Add AI-generated summary
+					digestContent += '**Key Themes:**\n';
+					digestContent += searchResult.answer.substring(0, 800);
+
+					// Add high-urgency samples if available
+					if (highUrgency.length > 0) {
+						digestContent += '\n\n**🔴 High-Urgency Items:**\n';
+						for (const item of highUrgency) {
+							const excerpt = item.body_text.substring(0, 100);
+							digestContent += `• "${excerpt}..."\n`;
+						}
+					}
+				} else {
+					digestContent += 'No feedback recorded for this date.';
 				}
-				for (const [source, counts] of Object.entries(grouped)) {
-					digestContent += `• ${source}: 👍${counts.pos} 😐${counts.neu} 👎${counts.neg}\n`;
+
+				// Truncate for Discord
+				if (digestContent.length > 1900) {
+					digestContent = digestContent.substring(0, 1897) + '...';
 				}
-				digestContent += '\n';
+
+				await editOriginalResponse(interaction.application_id, interaction.token, digestContent);
+			} catch (error) {
+				console.error('Digest command error:', error);
+				await editOriginalResponse(
+					interaction.application_id,
+					interaction.token,
+					'Sorry, I encountered an error generating the digest. Please try again.'
+				);
 			}
+		})()
+	);
 
-			// Add AI-generated summary
-			digestContent += '**Key Themes:**\n';
-			digestContent += searchResult.answer.substring(0, 800);
-
-			// Add high-urgency samples if available
-			if (highUrgency.length > 0) {
-				digestContent += '\n\n**🔴 High-Urgency Items:**\n';
-				for (const item of highUrgency) {
-					const excerpt = item.body_text.substring(0, 100);
-					digestContent += `• "${excerpt}..."\n`;
-				}
-			}
-		} else {
-			digestContent += 'No feedback recorded for this date.';
-		}
-
-		// Truncate for Discord
-		if (digestContent.length > 1900) {
-			digestContent = digestContent.substring(0, 1897) + '...';
-		}
-
-		return Response.json(createMessageResponse(digestContent));
-	} catch (error) {
-		console.error('Digest command error:', error);
-		return Response.json(createEphemeralResponse('Sorry, I encountered an error generating the digest. Please try again.'));
-	}
+	return Response.json(createDeferredResponse());
 }
 
 /**
