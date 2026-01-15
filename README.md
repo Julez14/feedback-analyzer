@@ -18,16 +18,17 @@ A Discord bot + HTTP API that ingests scattered feedback (support tickets, Disco
 ## 🔗 Live Demo
 
 **Deployed Worker:**  
-🔗 [https://feedback-analyzer.YOUR-ACCOUNT.workers.dev](https://feedback-analyzer.YOUR-ACCOUNT.workers.dev)  
-_(Replace with your actual deployed URL)_
+🔗 [https://feedback-analyzer.juelzlax.workers.dev](https://feedback-analyzer.juelzlax.workers.dev)
+
+**Discord Bot Intall Link:**  
+🔗 [https://discord.com/oauth2/authorize?client_id=1459585837292458024](https://discord.com/oauth2/authorize?client_id=1459585837292458024)
 
 **GitHub Repository:**  
 🔗 [https://github.com/julez14/feedback-analyzer](https://github.com/julez14/feedback-analyzer)
 
-**Demo Video/Screenshots:**
+**Demo Video:**
 
 <!-- 📹 [Loom Demo](https://loom.com/share/YOUR-LINK-HERE) -->
-<!-- 🖼️ Add screenshots or GIFs of Discord `/ask` and `/digest` commands here -->
 
 ---
 
@@ -65,7 +66,7 @@ _(Replace with your actual deployed URL)_
 
 ### Diagram
 
-<!-- 🖼️ Insert your architecture diagram here (e.g., Workers → AI/D1/R2/AI Search flow) -->
+![architecture diagram](assets/diagram.png)
 
 ```
 ┌─────────────────┐
@@ -206,7 +207,7 @@ Edit `wrangler.jsonc` to set up your bindings:
 		"DISCORD_PUBLIC_KEY": "YOUR-DISCORD-PUBLIC-KEY-HEX",
 		"AI_SEARCH_NAME": "feedback-search",
 		"MODEL_NORMALIZE": "@cf/meta/llama-3.1-8b-instruct",
-		"MODEL_SUMMARIZE": "@cf/meta/llama-3.1-8b-instruct"
+		"MODEL_SUMMARIZE": "@cf/meta/llama-3.1-8b-instruct" // Used for further query result summarization if needed
 	}
 }
 ```
@@ -285,7 +286,7 @@ npx wrangler dev
 npx wrangler deploy
 
 # Your worker will be live at:
-# https://feedback-analyzer.YOUR-ACCOUNT.workers.dev
+# https://feedback-analyzer.juelzlax.workers.dev
 ```
 
 ### Set Discord Interactions URL
@@ -295,7 +296,7 @@ After deploying, configure Discord to send interactions to your Worker:
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications) → Your App → General Information
 2. Set **Interactions Endpoint URL**:
    ```
-   https://feedback-analyzer.YOUR-ACCOUNT.workers.dev/interactions
+   https://feedback-analyzer.juelzlax.workers.dev/interactions
    ```
 3. Discord will send a PING request to verify the endpoint (your Worker handles this automatically)
 
@@ -303,7 +304,7 @@ After deploying, configure Discord to send interactions to your Worker:
 
 ```bash
 # Health check
-curl https://feedback-analyzer.YOUR-ACCOUNT.workers.dev/
+curl https://feedback-analyzer.juelzlax.workers.dev/
 
 # Should return:
 # {"status":"ok","service":"feedback-analyzer","endpoints":["/interactions","/ingest","/ask","/digest"]}
@@ -315,66 +316,20 @@ curl https://feedback-analyzer.YOUR-ACCOUNT.workers.dev/
 
 ### Discord Slash Commands
 
-<!-- 🖼️ Insert GIF/screenshot of `/ask` command here -->
-
 **Ask a question:**
 
-```
-/ask query: What are customers saying about D1 latency?
-```
-
-Response:
-
-```
-Customers have reported concerns about D1 query latency, particularly
-for complex joins. Several users mentioned experiencing 200-500ms
-response times. Most feedback came from users building real-time
-dashboards who need sub-100ms performance.
-
-Sources:
-1. "D1 queries taking 400ms for a 3-table join. Is this expected?..."
-2. "Love D1 but seeing some latency spikes in production when..."
-3. "Feature request: Add query explain/analyze to help debug slow..."
-```
-
-<!-- 🖼️ Insert GIF/screenshot of `/digest` command here -->
+![/ask demo](assets/ask.gif)
 
 **Get daily digest:**
 
-```
-/digest date: 2025-01-14
-```
-
-Response:
-
-```
-📊 Feedback Digest for 2025-01-14
-
-Total feedback: 47
-
-Breakdown by source & sentiment:
-• discord: 👍12 😐15 👎8
-• github: 👍5 😐3 👎2
-• support: 👍1 😐0 👎1
-
-Key Themes:
-Workers AI users are excited about the new Llama 3.3 70B model but
-are experiencing rate limiting issues. Several D1 users requested
-read replicas for scaling read-heavy workloads. R2 feedback was
-mostly positive with feature requests for lifecycle policies...
-
-🔴 High-Urgency Items:
-• "Production down: D1 database returning 500 errors for the pas..."
-• "Workers AI rate limit too aggressive for our use case, causin..."
-• "Billing spike: unexpected R2 egress charges without warning..."
-```
+![/digest demo](assets/digest.gif)
 
 ### HTTP API Examples
 
 **Ingest raw feedback:**
 
 ```bash
-curl -X POST https://feedback-analyzer.YOUR-ACCOUNT.workers.dev/ingest \
+curl -X POST https://feedback-analyzer.juelzlax.workers.dev/ingest \
   -H "Content-Type: application/json" \
   -d '{
     "id": "discord-msg-123456",
@@ -407,7 +362,7 @@ Response:
 **Query feedback (RAG):**
 
 ```bash
-curl -X POST https://feedback-analyzer.YOUR-ACCOUNT.workers.dev/ask \
+curl -X POST https://feedback-analyzer.juelzlax.workers.dev/ask \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the top feature requests for R2?"}'
 ```
@@ -415,7 +370,7 @@ curl -X POST https://feedback-analyzer.YOUR-ACCOUNT.workers.dev/ask \
 **Generate digest:**
 
 ```bash
-curl -X POST https://feedback-analyzer.YOUR-ACCOUNT.workers.dev/digest \
+curl -X POST https://feedback-analyzer.juelzlax.workers.dev/digest \
   -H "Content-Type: application/json" \
   -d '{"date": "2025-01-14"}'
 ```
@@ -445,10 +400,10 @@ npx tsx scripts/ingest-sample.ts
 
 ### Planned Enhancements
 
-#### 🔄 Scheduled Digests (High Priority)
+#### 🔄 Scheduled Digests
 
 - **Use Cloudflare Workflows or Cron Triggers** to auto-generate daily digests
-- Post to Discord/Slack channel every morning (e.g., 9 AM UTC)
+- Post to Discord channel every morning (e.g., 9 AM UTC)
 - _Why:_ PMs shouldn't have to remember to run `/digest` manually
 
 #### 🧠 Better Deduplication & Clustering
@@ -493,10 +448,4 @@ npx tsx scripts/ingest-sample.ts
 
 ---
 
-## 📝 License
-
-MIT License - feel free to use this as a starting point for your own feedback analysis tools!
-
----
-
-**Built for the Cloudflare PM Intern Assignment** | January 2025
+**Built for the Cloudflare PM Intern Assignment** | January 2026
