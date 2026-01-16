@@ -493,5 +493,4 @@ npx tsx scripts/ingest-sample.ts
 
 ---
 
-**Built for the Cloudflare PM Intern Assignment** | January 2026
-[Submission Document](https://docs.google.com/document/d/17E2OgwkzNVr5ua2TpQ_nkPPLT9gBHVsn27D92WWm5Wg/edit?usp=sharing)
+**Built for the Cloudflare PM Intern Assignment** | January 2026 | [Submission Document](https://docs.google.com/document/d/17E2OgwkzNVr5ua2TpQ_nkPPLT9gBHVsn27D92WWm5Wg/edit?usp=sharing)
