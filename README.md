@@ -17,7 +17,7 @@ A Discord bot + HTTP API that ingests scattered feedback (support tickets, Disco
 
 ## 🔗 Live Demo
 
-**Demo Video:**
+**Demo Video:**  
 [![Video Overview](https://img.youtube.com/vi/_3EA9o92gao/0.jpg)](https://www.youtube.com/watch?v=_3EA9o92gao)
 
 **Deployed Worker:**  
