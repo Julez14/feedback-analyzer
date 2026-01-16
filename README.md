@@ -17,6 +17,9 @@ A Discord bot + HTTP API that ingests scattered feedback (support tickets, Disco
 
 ## 🔗 Live Demo
 
+**Demo Video:**
+[![Video Overview](https://img.youtube.com/vi/_3EA9o92gao/0.jpg)](https://www.youtube.com/watch?v=_3EA9o92gao)
+
 **Deployed Worker:**  
 🔗 [https://feedback-analyzer.juelzlax.workers.dev](https://feedback-analyzer.juelzlax.workers.dev)
 
@@ -25,10 +28,6 @@ A Discord bot + HTTP API that ingests scattered feedback (support tickets, Disco
 
 **GitHub Repository:**  
 🔗 [https://github.com/julez14/feedback-analyzer](https://github.com/julez14/feedback-analyzer)
-
-**Demo Video:**
-
-[Video Overview](https://youtu.be/_3EA9o92gao)
 
 ---
 
